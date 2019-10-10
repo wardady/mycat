@@ -1,7 +1,8 @@
 #ifndef MYCAT_MYCAT_H
 #define MYCAT_MYCAT_H
 
-#include <unistd.h>
+//#define EXTRA_POINTS 1
+
 #include <stdbool.h>
 
 #define BUFFSIZE 4096
@@ -21,20 +22,19 @@ const char malloc_error[] = "mycat: memory allocation error\n";
 struct option long_options[] = {{"help", no_argument, NULL, 'h'},
                                 {NULL, 0,             NULL, 0}};
 
+void error(const char *error_message);
+void display_help_message();
+
+#ifndef EXTRA_POINTS
+
+#include <unistd.h>
 
 ssize_t readbuff(int fd, char *buffer, ssize_t size);
-
 ssize_t writebuff(int fd, const char *buffer, ssize_t size, bool to_hex);
-
-void print(const char *string);
-
-void error(const char *error_message);
-
-void display_help_message();
 
 int cat(int fp, bool to_hex);
 
-#ifdef EXTRA_POINTS
+#else
 
 int cat_stdlib(FILE *fd, bool to_hex);
 

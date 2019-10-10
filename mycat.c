@@ -29,18 +29,23 @@ int main(int argc, char *argv[]) {
     }
 
     size_t passed_files = argc - 1 - invisible_to_hex;
+#ifndef EXTRA_POINTS
     int *opened_files = (int *) malloc(sizeof(int) * passed_files);
-#ifdef EXTRA_POINTS
-    FILE **opened_files_stdlib = (FILE **) malloc(sizeof(FILE *) * passed_files);
-    size_t k = 0;
-#endif
     if (opened_files == NULL) {
         error(malloc_error);
         _exit(EXIT_FAILURE);
     }
+#else
+    FILE **opened_files_stdlib = (FILE **) malloc(sizeof(FILE *) * passed_files);
+    if (opened_files_stdlib == NULL) {
+        error(malloc_error);
+        _exit(EXIT_FAILURE);
+    }
+#endif
     size_t j = 0;
     for (size_t i = 1; i < argc; ++i) {
         if (strncmp(argv[i], "-A", strlen(argv[i]))) {
+#ifndef EXTRA_POINTS
             int fd;
             if ((fd = open(argv[i], O_RDONLY)) == -1) {
                 error(open_error);
@@ -50,36 +55,56 @@ int main(int argc, char *argv[]) {
                 _exit(EXIT_FAILURE);
             }
             opened_files[j++] = fd;
-#ifdef EXTRA_POINTS
+#else
             FILE *f;
             if ((f = fopen(argv[i], "r")) == NULL) {
                 fwrite(open_error, sizeof(char), strlen(open_error), stderr);
-                exit(EXIT_FAILURE);
+                _exit(EXIT_FAILURE);
             }
-            opened_files_stdlib[k++] = f;
+            opened_files_stdlib[j++] = f;
 #endif
         }
     }
 
+#ifndef EXTRA_POINTS
     int err_cd;
     for (size_t i = 0; i < passed_files; ++i) {
         err_cd = cat(opened_files[i], invisible_to_hex);
         close(opened_files[i]);
         if (err_cd) {
             free(opened_files);
-            free(opened_files_stdlib);
             _exit(EXIT_FAILURE);
         }
-
-#ifdef EXTRA_POINTS
-        cat_stdlib(opened_files_stdlib[i], invisible_to_hex);
-        fclose(opened_files_stdlib[i]);
-#endif
     }
     free(opened_files);
+#else
+    for (size_t i = 0; i < passed_files; ++i) {
+        cat_stdlib(opened_files_stdlib[i], invisible_to_hex);
+        fclose(opened_files_stdlib[i]);
+    }
     free(opened_files_stdlib);
+#endif
     _exit(EXIT_SUCCESS);
 }
+
+void error(const char *err) {
+#ifndef EXTRA_POINTS
+    writebuff(STDERR_FILENO, err, strlen(err), false);
+#else
+    fwrite(err, sizeof(char), strlen(err), stderr);
+#endif
+}
+
+void display_help_message() {
+#ifndef EXTRA_POINTS
+    writebuff(STDOUT_FILENO, help_message, strlen(help_message), false);
+#else
+    fwrite(help_message, sizeof(char), strlen(help_message), stdout);
+#endif
+    _exit(0);
+}
+
+#ifndef EXTRA_POINTS
 
 ssize_t readbuff(int fd, char *buffer, ssize_t size) {
     ssize_t read_bytes = 0;
@@ -122,15 +147,6 @@ ssize_t writebuff(int fd, const char *buffer, ssize_t size, bool to_hex) {
     return written_bytes;
 }
 
-void error(const char *err) {
-    writebuff(STDERR_FILENO, err, strlen(err), false);
-}
-
-void display_help_message() {
-    writebuff(STDOUT_FILENO, help_message, strlen(help_message), false);
-    _exit(0);
-}
-
 int cat(int fd, bool to_hex) {
     char buffer[BUFFSIZE];
     ssize_t n;
@@ -146,7 +162,7 @@ int cat(int fd, bool to_hex) {
     return 0;
 }
 
-#ifdef EXTRA_POINTS
+#else
 
 int cat_stdlib(FILE *fp, bool to_hex) {
     char buffer[BUFFSIZE];
@@ -154,11 +170,11 @@ int cat_stdlib(FILE *fp, bool to_hex) {
     do {
         size_t count = fread(buffer, sizeof(char), BUFFSIZE, fp);
         if ((err = ferror(fp))) {
-            fwrite(read_error, sizeof(char), strlen(read_error), stderr);
+            error(read_error);
             break;
         }
         if (write_stdlib(buffer, count, to_hex) < count) {
-            fwrite(write_error, sizeof(char), strlen(write_error), stderr);
+            error(write_error);
             return -1;
         }
     } while (!feof(fp));

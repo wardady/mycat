@@ -9,6 +9,8 @@
 
 #include "mycat.h"
 
+//#define EXTRA_POINTS in header file for extra task functions
+
 int main(int argc, char *argv[]) {
     if (argc == 1)
         display_help_message();
@@ -28,6 +30,10 @@ int main(int argc, char *argv[]) {
 
     size_t passed_files = argc - 1 - invisible_to_hex;
     int *opened_files = (int *) malloc(sizeof(int) * passed_files);
+#ifdef EXTRA_POINTS
+    FILE **opened_files_stdlib = (FILE **) malloc(sizeof(FILE *) * passed_files);
+    size_t k = 0;
+#endif
     if (opened_files == NULL) {
         error(malloc_error);
         _exit(EXIT_FAILURE);
@@ -44,6 +50,14 @@ int main(int argc, char *argv[]) {
                 _exit(EXIT_FAILURE);
             }
             opened_files[j++] = fd;
+#ifdef EXTRA_POINTS
+            FILE *f;
+            if ((f = fopen(argv[i], "r")) == NULL) {
+                fwrite(open_error, sizeof(char), strlen(open_error), stderr);
+                exit(EXIT_FAILURE);
+            }
+            opened_files_stdlib[k++] = f;
+#endif
         }
     }
 
@@ -51,11 +65,19 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < passed_files; ++i) {
         err_cd = cat(opened_files[i], invisible_to_hex);
         close(opened_files[i]);
+        if (err_cd) {
+            free(opened_files);
+            free(opened_files_stdlib);
+            _exit(EXIT_FAILURE);
+        }
+
+#ifdef EXTRA_POINTS
+        cat_stdlib(opened_files_stdlib[i], invisible_to_hex);
+        fclose(opened_files_stdlib[i]);
+#endif
     }
     free(opened_files);
-    if (err_cd)
-        _exit(EXIT_FAILURE);
-
+    free(opened_files_stdlib);
     _exit(EXIT_SUCCESS);
 }
 
@@ -123,3 +145,40 @@ int cat(int fd, bool to_hex) {
     }
     return 0;
 }
+
+#ifdef EXTRA_POINTS
+
+int cat_stdlib(FILE *fp, bool to_hex) {
+    char buffer[BUFFSIZE];
+    int err = 0;
+    do {
+        size_t count = fread(buffer, sizeof(char), BUFFSIZE, fp);
+        if ((err = ferror(fp))) {
+            fwrite(read_error, sizeof(char), strlen(read_error), stderr);
+            break;
+        }
+        if (write_stdlib(buffer, count, to_hex) < count) {
+            fwrite(write_error, sizeof(char), strlen(write_error), stderr);
+            return -1;
+        }
+    } while (!feof(fp));
+    return err;
+}
+
+size_t write_stdlib(const char *buffer, size_t size, bool to_hex) {
+    if (to_hex) {
+        char hexed_buffer[BUFFSIZE * 4];
+        size_t j = 0;
+        for (size_t i = 0; i < size; ++i, ++j)
+            if (!isprint(buffer[i]) && !isspace(buffer[i])) {
+                sprintf(&hexed_buffer[j], "\\x%02x", (unsigned char) buffer[i]);
+                j += 3;
+            } else
+                hexed_buffer[j] = buffer[i];
+        buffer = hexed_buffer;
+        size = j;
+    }
+    return fwrite(buffer, sizeof(char), size, stdout);
+}
+
+#endif

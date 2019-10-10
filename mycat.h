@@ -32,6 +32,14 @@ void error(const char *error_message);
 
 void display_help_message();
 
-int cat(int fd, bool to_hex);
+int cat(int fp, bool to_hex);
+
+#ifdef EXTRA_POINTS
+
+int cat_stdlib(FILE *fd, bool to_hex);
+
+size_t write_stdlib(const char *buffer, size_t size, bool to_hex);
+
+#endif
 
 #endif //MYCAT_MYCAT_H

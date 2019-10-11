@@ -127,7 +127,7 @@ ssize_t writebuff(int fd, const char *buffer, ssize_t size, bool to_hex) {
         size_t j = 0;
         for (size_t i = 0; i < size; ++i, ++j)
             if (!isprint(buffer[i]) && !isspace(buffer[i])) {
-                sprintf(&hexed_buffer[j], "\\x%02x", (unsigned char) buffer[i]);
+                sprintf(&hexed_buffer[j], "\\x%02X", (unsigned char) buffer[i]);
                 j += 3;
             } else
                 hexed_buffer[j] = buffer[i];
